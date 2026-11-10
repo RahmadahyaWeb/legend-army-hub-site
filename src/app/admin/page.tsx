@@ -1,5 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Link from "next/link";
 
 export default function AdminPage() {
   return (
@@ -9,8 +10,7 @@ export default function AdminPage() {
           Area Admin
         </h1>
         <p className="text-muted-foreground">
-          Import CSV member dan menyusun lineup Guild League akan tersedia di
-          sini.
+          Import CSV member dan menyusun lineup Guild League dikelola dari sini.
         </p>
       </div>
 
@@ -29,12 +29,15 @@ export default function AdminPage() {
               </span>
             </li>
             <li className="flex items-start gap-3">
-              <Badge variant="outline" className="mt-0.5 shrink-0">
-                Segera
+              <Badge variant="secondary" className="mt-0.5 shrink-0">
+                Aktif
               </Badge>
-              <span className="text-foreground">
+              <Link
+                href="/admin/members"
+                className="text-foreground underline underline-offset-4"
+              >
                 Import CSV member (ticket 03).
-              </span>
+              </Link>
             </li>
             <li className="flex items-start gap-3">
               <Badge variant="outline" className="mt-0.5 shrink-0">

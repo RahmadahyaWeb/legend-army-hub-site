@@ -126,7 +126,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      // RPC import CSV member (supabase/migrations/20261110220000_import_members_rpc.sql).
+      import_members: {
+        Args: {
+          payload: Json
+        }
+        Returns: Json
+      }
     }
     Enums: {
       member_lane: "top" | "mid" | "bot"

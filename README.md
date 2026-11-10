@@ -12,6 +12,7 @@ PRD & rencana ticket: `.scratch/guild-league-lineup/spec.md`.
 | Framework   | Next.js 16 (App Router, RSC, TypeScript)              |
 | Styling     | Tailwind CSS v4 + shadcn/ui (style `radix-nova`)      |
 | Data        | Supabase Postgres + RLS + Auth (email/password)       |
+| Parsing CSV | papaparse (RFC4180, tahan BOM/CRLF)                   |
 | Test        | Playwright (e2e + unit)                              |
 | Deploy      | Netlify (`@netlify/plugin-nextjs`)                    |
 
@@ -52,6 +53,40 @@ supabase db push
 Migrasi `20261110115957_init_lineup_schema.sql` membuat tabel `guild_members`, `teams`,
 `lineup_slots`, mengaktifkan RLS, dan men-seed 12 tim (position 1–4 `top`, 5–8 `mid`,
 9–12 `bot`).
+
+Migrasi `20261110220000_import_members_rpc.sql` menambah fungsi Postgres
+`import_members(jsonb)`: satu transaksi untuk import CSV (lihat di bawah).
+
+## Import CSV member
+
+Halaman `/admin/members` (area admin). Alurnya: pilih file → **Periksa** (pratinjau,
+tidak mengubah data apa pun) → konfirmasi yang menyebut jumlah member yang akan
+dihapus → laporan hasil import.
+
+Aturan main (spec §4.3, US-1):
+
+| Aturan | Perilaku |
+| ------ | -------- |
+| Header | 12 kolom wajib, urut bebas, nama dicocokkan case-insensitive + trim. Tidak cocok → **import ditolak utuh** (pesan menyebut kolom bermasalah), tidak ada data yang berubah. |
+| BOM / CRLF | UTF-8 BOM di-strip, line ending LF/CRLF keduanya diterima. |
+| Baris bermasalah | Ditolak **per baris** (nilai non-numerik, jumlah kolom ≠ 12, nama kosong, `Player` duplikat) — file lain tetap masuk. |
+| Replace-all | Isi tabel member setelah import = persis isi CSV. Member lama yang tidak ada di CSV hilang. |
+| Lineup | Slot lineup dipertahankan **by nama** (case-insensitive). Member yang tidak ada di CSV → slot kosong + namanya muncul di laporan. |
+| Batas | File > 5 MB atau > 2000 baris data ditolak, ditegakkan di server (`src/lib/csv.ts` + `MAX_IMPORT_BYTES`). |
+
+Penulisan data lewat fungsi Postgres `import_members()`: snapshot lineup → hapus member
+lama → insert member baru → bangun ulang slot by nama, **satu transaksi**. Kalau satu
+langkah gagal, semuanya dibatalkan — tidak pernah ada kondisi "member lama terhapus,
+member baru tidak masuk". Fungsi ini `SECURITY INVOKER` + cek `app_metadata.role =
+'admin'`, jadi RLS tetap berlaku dan akun non-admin tidak bisa memanggilnya.
+
+> Dua jebakan yang sudah ditangani di migrasi: PostgREST menolak statement `DELETE`
+> tanpa `WHERE` di dalam fungsi (`DELETE requires a WHERE clause`) — makanya
+> `delete from guild_members where true;`; dan fungsi yang mengembalikan `jsonb` dipanggil
+> lewat `supabase.rpc("import_members", { payload })`.
+
+> Batas 5 MB mengikuti spec. Di Netlify (payload Lambda ±6 MB) file sebesar itu bisa
+> ditolak platform sebelum sampai Next.js; file export guild normal jauh di bawah itu.
 
 ## Auth admin
 
@@ -105,6 +140,21 @@ role `anon` maupun token asli user non-admin.
 `tests/auth.spec.ts` membuktikan alur aplikasi: anonim → 307 ke halaman login, admin →
 area admin (sesi bertahan setelah refresh), non-admin → 403, logout → `/admin` terkunci lagi.
 
+## Test import CSV
+
+`tests/csv.unit.spec.ts` (unit, tanpa database): BOM + CRLF, validasi header (kolom
+wajib hilang / kolom tak dikenal / urutan bebas / case-insensitive), penolakan per baris
+(non-numerik, jumlah kolom ≠ 12, nama kosong, `Player` duplikat), batas 2000 baris, file
+bukan UTF-8, nama non-Latin & emoji, dan fixture `import.csv` → 148 diterima, 0 ditolak.
+
+`tests/import-members.spec.ts` (e2e, memakai database dev): admin login → pratinjau →
+konfirmasi → laporan; import `import.csv` (148 baris) → 148 diterima, 0 ditolak, isi
+tabel member = persis isi CSV; header salah → ditolak tanpa mengubah data; anonim tidak
+bisa menyentuh form import.
+
+> Test e2e import memakai database dev sungguhan dan sifatnya **replace-all** — isi
+> `guild_members` setelah test = isi file yang terakhir diimpor.
+
 ## Catatan Next.js 16
 
 `next.config.ts` memakai `cacheComponents: true` (default scaffold Next 16).
@@ -137,13 +187,15 @@ tampil sebagai UI 403 (bukan exception generik).
 src/app/(public)/page.tsx   Halaman lineup publik (RSC, read-only)
 src/app/login/               Halaman login + server action login
 src/app/admin/               Area terproteksi (layout = pager role)
+src/app/admin/members/       Halaman import CSV member (pratinjau + laporan)
 src/app/forbidden.tsx        UI 403 (fallback `forbidden()` dari server action)
 src/proxy.ts                 Gerbang /admin/* (307 ke /login, 403 untuk non-admin)
 src/lib/auth.ts              DAL: user login, cek role admin, guard server action
+src/lib/csv.ts               Parser + validator CSV export guild (BOM/CRLF/header/baris)
 src/lib/lineup.ts            Query lineup + pengelompokan per lane
 src/lib/supabase/server.ts   Klien Supabase SSR (cookie-based)
 scripts/                     Seed admin + cek kebocoran kunci + cek signup
-supabase/migrations/         Skema, RLS, seed tim
+supabase/migrations/         Skema, RLS, seed tim, RPC import
 supabase/tests/              Uji RLS SQL
 tests/                       Uji Playwright (e2e + unit)
 ```
