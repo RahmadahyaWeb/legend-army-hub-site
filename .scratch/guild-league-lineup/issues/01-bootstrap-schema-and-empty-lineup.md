@@ -6,7 +6,13 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** resolved
+**Status:** ready-for-human
+
+> Implementasi kode **selesai dan terverifikasi** (semua test hijau, sudah di-commit).
+> Yang tersisa hanya **satu tindakan oleh owner**: menempelkan nilai `SUPABASE_SERVICE_ROLE_KEY`
+> ke `.env.local` (lihat checkbox ke-2 dan bagian "Yang belum selesai" di bawah).
+> Status `ready-for-human` dipakai karena item tersisa itu memang hanya bisa dilakukan manusia
+> (mengambil credential dari dashboard Supabase).
 
 - [x] Next.js (App Router, TypeScript, Tailwind, shadcn/ui) ter-scaffold di repo; `npm run dev` dan `npm run build` berjalan tanpa error.
 - [ ] Supabase project dibuat (organisasi & persetujuan biaya sudah dikonfirmasi user); URL, anon key, dan service-role key tersedia sebagai env var, service-role hanya di environment server. — **terpenuhi sebagian**: project `legend-army-hub` (ref `ugrldjoimmaqmcfkihlv`, region ap-southeast-1, biaya $0) + `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` sudah terisi di `.env.local`; `SUPABASE_SERVICE_ROLE_KEY` masih kosong — menunggu owner menempelkan nilainya dari dashboard (server-only, tanpa prefix `NEXT_PUBLIC_`).
