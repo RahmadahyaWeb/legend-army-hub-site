@@ -16,4 +16,17 @@
 
 ## Comments
 
-- (kosong)
+### Catatan dari ticket 03 (sudah dikerjakan sebagian)
+
+- Mekanisme **snapshot lineup → delete → relink by nama** sudah ada di ticket 03, di dalam
+  fungsi Postgres `import_members()` (`supabase/migrations/20261110220000_import_members_rpc.sql`):
+  snapshot `(team_position, slot_no, player_name)` diambil sebelum member dihapus, lalu slot
+  dibangun ulang dengan pencocokan nama **case-insensitive**. Member yang tidak ada di CSV
+  → slot kosong + namanya dikembalikan di laporan import (`dropped`).
+- Test integrasinya juga sudah ada: `tests/import-members.spec.ts` → "member yang tidak ada
+  di CSV baru kehilangan slot dan tercatat di laporan" (lineup 3 slot → import tanpa 1 member
+  → 2 slot terisi, 1 kosong, nama yang hilang muncul di laporan).
+- Yang **masih tersisa** untuk ticket ini: sisi editor — import ulang dari editor lineup
+  (ticket 04/05), memastikan susunan yang disusun lewat drag & drop tetap terisi setelah
+  roster di-import ulang, dan UX kalau ada slot yang jadi kosong.
+
