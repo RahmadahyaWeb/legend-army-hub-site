@@ -171,8 +171,10 @@ export async function runImportAction(formData: FormData): Promise<ImportResult>
   }
 
   // Data member berubah -> halaman lineup publik & area admin harus segar.
+  // Editor lineup ikut karena nama/slot di sana berasal dari tabel member.
   revalidatePath("/");
   revalidatePath("/admin/members");
+  revalidatePath("/admin/lineup");
 
   return {
     status: "done",

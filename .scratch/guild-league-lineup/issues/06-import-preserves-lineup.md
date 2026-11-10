@@ -8,11 +8,11 @@
 
 **Status:** ready-for-agent
 
-- [ ] Import kedua dengan CSV yang memuat member yang sama → slot yang sama terisi member yang sama (kunci pencocokan: `Player`).
-- [ ] Member yang tidak ada di CSV baru → slotnya kosong, dan namanya tercatat di laporan import.
-- [ ] Sifat replace-all tetap berlaku untuk data member: member lama yang tidak ada di CSV baru tidak tersisa.
-- [ ] Snapshot slot (posisi tim, nomor slot, nama member) diambil sebelum data member lama dihapus, lalu slot dibangun ulang dari snapshot tersebut.
-- [ ] Test integrasi: lineup berisi 3 slot → import CSV tanpa 1 member → 2 slot tetap terisi, 1 slot kosong, dan nama member yang hilang muncul di laporan import.
+- [x] Import kedua dengan CSV yang memuat member yang sama → slot yang sama terisi member yang sama (kunci pencocokan: `Player`).
+- [x] Member yang tidak ada di CSV baru → slotnya kosong, dan namanya tercatat di laporan import.
+- [x] Sifat replace-all tetap berlaku untuk data member: member lama yang tidak ada di CSV baru tidak tersisa.
+- [x] Snapshot slot (posisi tim, nomor slot, nama member) diambil sebelum data member lama dihapus, lalu slot dibangun ulang dari snapshot tersebut.
+- [x] Test integrasi: lineup berisi 3 slot → import CSV tanpa 1 member → 2 slot tetap terisi, 1 slot kosong, dan nama member yang hilang muncul di laporan import.
 
 ## Comments
 
@@ -30,3 +30,18 @@
   (ticket 04/05), memastikan susunan yang disusun lewat drag & drop tetap terisi setelah
   roster di-import ulang, dan UX kalau ada slot yang jadi kosong.
 
+
+### Selesai (sisi editor)
+
+- `runImportAction` sekarang juga `revalidatePath("/admin/lineup")` — sebelumnya
+  editor lineup masih menyajikan data member lama setelah import ulang.
+- Laporan import menampilkan tombol **"Isi slot kosong di editor lineup"** kalau ada
+  slot yang jadi kosong (`import-fix-lineup-link`), supaya admin langsung bisa
+  memperbaiki lineup tanpa menebak halaman.
+- Test integrasi baru di `tests/import-members.spec.ts` → "lineup yang disusun di
+  editor tetap terisi setelah import ulang": lineup 3 slot (slot 1 lewat drag & drop,
+  2 lewat klik) → import CSV tanpa 1 member → 2 slot tetap terisi member yang sama,
+  slot ketiga kosong, nama yang hilang muncul di laporan.
+- Tidak ada import control di `/admin/lineup` (import tetap hanya dari
+  `/admin/members`) dan editor tidak menandai slot mana yang dikosongkan import —
+  laporan import yang menyebut Tim + nomor slot, jadi keduanya sengaja tidak dibuat.

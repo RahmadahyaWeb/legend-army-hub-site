@@ -1,7 +1,9 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 // Import CSV member (ticket 03). Test ini memakai database dev sungguhan:
 // import bersifat replace-all, jadi isi tabel member = isi CSV.
+// Test terakhir (ticket 06) memastikan lineup yang disusun di editor tetap
+// terisi setelah import ulang.
 
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
@@ -113,6 +115,21 @@ async function login(page: Page) {
   await page.getByLabel("Password").fill(ADMIN_PASSWORD!);
   await page.getByRole("button", { name: "Masuk" }).click();
   await expect(page.getByTestId("admin-title")).toBeVisible();
+}
+
+/** Seret dengan mouse: dnd-kit butuh satu gerakan kecil dulu untuk aktivasi. */
+async function drag(page: Page, source: Locator, toTestId: string) {
+  const target = page.getByTestId(toTestId);
+  await target.scrollIntoViewIfNeeded();
+
+  const from = (await source.boundingBox())!;
+  const to = (await target.boundingBox())!;
+
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(from.x + from.width / 2 + 8, from.y + from.height / 2 + 8);
+  await page.mouse.move(to.x + to.width / 2, to.y + to.height / 2, { steps: 10 });
+  await page.mouse.up();
 }
 
 test.describe.configure({ mode: "serial" });
@@ -263,4 +280,57 @@ test("hanya admin yang bisa menjalankan import", async ({ page }) => {
   await page.goto("/admin/members");
   await expect(page).toHaveURL(/\/login(\?|$)/);
   await expect(page.getByTestId("import-file")).toHaveCount(0);
+});
+
+test("lineup yang disusun di editor tetap terisi setelah import ulang", async ({ page }) => {
+  const headers = await adminHeaders();
+
+  // Mulai bersih: hapus semua member (slot ikut cascade), lalu isi 3 member.
+  const removed = await fetch(`${URL}/rest/v1/guild_members?id=not.is.null`, {
+    method: "DELETE",
+    headers,
+  });
+  expect([200, 204]).toContain(removed.status);
+  await insertMembers(headers, ["Alpha", "Beta", "Gamma"]);
+
+  // Susun 3 slot lewat editor: satu lewat drag & drop (yang diuji ticket 06),
+  // dua lewat klik — jalur yang sama, tapi drag membuktikan susunan hasil
+  // seret juga ikut dipertahankan.
+  await login(page);
+  await page.goto("/admin/lineup");
+  await drag(
+    page,
+    page.getByTestId("pool-member").filter({ hasText: "Alpha" }).getByRole("button"),
+    "slot-1-1",
+  );
+  await expect(page.getByTestId("slot-1-1")).toContainText("Alpha");
+
+  for (const [index, name] of ["Beta", "Gamma"].entries()) {
+    await page
+      .getByTestId("pool-member")
+      .filter({ hasText: name })
+      .getByRole("button")
+      .click();
+    await page.getByTestId(`empty-slot-1-${index + 2}`).click();
+    await expect(page.getByTestId(`slot-1-${index + 2}`)).toContainText(name);
+  }
+
+  // Import ulang CSV yang tidak memuat Gamma.
+  await page.goto("/admin/members");
+  await page.getByTestId("import-file").setInputFiles("tests/fixtures/lineup-members.csv");
+  await page.getByTestId("import-preview-button").click();
+  await expect(page.getByTestId("import-preview")).toBeVisible();
+  await page.getByTestId("import-confirm-button").click();
+  await expect(page.getByTestId("import-report")).toBeVisible();
+  await expect(page.getByTestId("import-dropped-list")).toContainText("Gamma");
+
+  // Laporan menawarkan jalan ke editor untuk mengisi slot yang jadi kosong.
+  await page.getByTestId("import-fix-lineup-link").click();
+  await expect(page.getByTestId("lineup-editor-title")).toBeVisible();
+
+  // Susunan lama dipertahankan by nama; slot Gamma kosong, bukan terhapus.
+  await expect(page.getByTestId("slot-1-1")).toContainText("Alpha");
+  await expect(page.getByTestId("slot-1-2")).toContainText("Beta");
+  await expect(page.getByTestId("empty-slot-1-3")).toBeVisible();
+  await expect(page.getByTestId("pool-member")).toHaveCount(2);
 });

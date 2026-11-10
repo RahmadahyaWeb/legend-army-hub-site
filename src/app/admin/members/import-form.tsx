@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import {
   previewImportAction,
   runImportAction,
@@ -343,6 +344,13 @@ export function ImportForm() {
                 ))
               )}
             </div>
+            {report.dropped.length > 0 ? (
+              <Button asChild variant="outline">
+                <Link href="/admin/lineup" data-testid="import-fix-lineup-link">
+                  Isi slot kosong di editor lineup
+                </Link>
+              </Button>
+            ) : null}
           </div>
 
           <SampleNames names={report.sampleNames} />
