@@ -3,7 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { SLOTS_PER_TEAM, slotAssignError, TEAMS_PER_LINEUP } from "@/lib/lineup";
+import {
+  LANES,
+  SLOTS_PER_TEAM,
+  slotAssignError,
+  TEAMS_PER_LINEUP,
+  type Lane,
+} from "@/lib/lineup";
 
 // Editor lineup (spec .scratch/guild-league-lineup/spec.md §4.6, US-2).
 //
@@ -19,11 +25,21 @@ export type UnassignResult =
   | { status: "ok"; memberId: string }
   | { status: "error"; error: string };
 
-function isSlotInBounds(teamPosition: number, slotNo: number): boolean {
+export type SetLaneResult =
+  | { status: "ok"; teamPosition: number; lane: Lane }
+  | { status: "error"; error: string };
+
+function isTeamPositionInBounds(teamPosition: number): boolean {
   return (
     Number.isInteger(teamPosition) &&
     teamPosition >= 1 &&
-    teamPosition <= TEAMS_PER_LINEUP &&
+    teamPosition <= TEAMS_PER_LINEUP
+  );
+}
+
+function isSlotInBounds(teamPosition: number, slotNo: number): boolean {
+  return (
+    isTeamPositionInBounds(teamPosition) &&
     Number.isInteger(slotNo) &&
     slotNo >= 1 &&
     slotNo <= SLOTS_PER_TEAM
@@ -117,4 +133,37 @@ export async function unassignMemberAction(memberId: string): Promise<UnassignRe
   revalidateLineup();
 
   return { status: "ok", memberId };
+}
+
+/** Pindahkan lane satu tim. Lane hanya label: jumlah tim per lane tidak
+ *  divalidasi dan tidak mengubah slot lineup (AC3.2, AC3.4). */
+export async function setTeamLaneAction(
+  teamPosition: number,
+  lane: Lane,
+): Promise<SetLaneResult> {
+  await requireAdmin();
+
+  const positionValid = isTeamPositionInBounds(teamPosition);
+
+  if (!positionValid || !LANES.includes(lane)) {
+    return { status: "error", error: "Tim atau lane tidak valid." };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("teams")
+    .update({ lane })
+    .eq("position", teamPosition)
+    .select("position");
+
+  if (error) {
+    return { status: "error", error: `Gagal menyimpan lane: ${error.message}` };
+  }
+  if (!data.length) {
+    return { status: "error", error: "Tim tidak ditemukan." };
+  }
+
+  revalidateLineup();
+
+  return { status: "ok", teamPosition, lane };
 }

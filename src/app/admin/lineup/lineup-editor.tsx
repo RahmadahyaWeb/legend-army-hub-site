@@ -11,11 +11,11 @@ import {
   useSensors,
   type DragEndEvent,
 } from "@dnd-kit/core";
-import { assignMemberAction, unassignMemberAction } from "@/app/admin/lineup/actions";
+import { assignMemberAction, setTeamLaneAction, unassignMemberAction } from "@/app/admin/lineup/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import type { LineupTeam, PoolMember } from "@/lib/lineup";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { Lane, LineupTeam, PoolMember } from "@/lib/lineup";
 
 const slotId = (teamPosition: number, slotNo: number) => `${teamPosition}:${slotNo}`;
 
@@ -145,7 +145,15 @@ function Slot({
   );
 }
 
-export function LineupEditor({ teams, pool }: { teams: LineupTeam[]; pool: PoolMember[] }) {
+export function LineupEditor({
+  teams,
+  pool,
+  lanes,
+}: {
+  teams: LineupTeam[];
+  pool: PoolMember[];
+  lanes: readonly Lane[];
+}) {
   const router = useRouter();
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ kind: "error"; text: string } | null>(null);
@@ -177,6 +185,10 @@ export function LineupEditor({ teams, pool }: { teams: LineupTeam[]; pool: PoolM
 
   function unassign(memberId: string) {
     run(() => unassignMemberAction(memberId));
+  }
+
+  function setLane(teamPosition: number, lane: Lane) {
+    run(() => setTeamLaneAction(teamPosition, lane));
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -239,7 +251,24 @@ export function LineupEditor({ teams, pool }: { teams: LineupTeam[]; pool: PoolM
               <Card key={team.position} data-testid="editor-team-card" size="sm" className="h-full">
                 <CardHeader>
                   <CardTitle>Tim {team.position}</CardTitle>
-                  <Badge variant="secondary">{team.lane.toUpperCase()}</Badge>
+                  <CardAction>
+                    <select
+                      aria-label={`Lane Tim ${team.position}`}
+                      data-testid={`team-lane-${team.position}`}
+                      value={team.lane}
+                      disabled={isPending}
+                      onChange={(event) =>
+                        setLane(team.position, event.target.value as Lane)
+                      }
+                      className="rounded-md border border-border bg-background px-2 py-1 text-xs font-medium focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-60"
+                    >
+                      {lanes.map((lane) => (
+                        <option key={lane} value={lane}>
+                          {lane.toUpperCase()}
+                        </option>
+                      ))}
+                    </select>
+                  </CardAction>
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-col gap-2">

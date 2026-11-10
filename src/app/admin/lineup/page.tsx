@@ -1,6 +1,6 @@
 export const instant = false;
 
-import { getLineup, getPoolMembers } from "@/lib/lineup";
+import { getLineup, getPoolMembers, LANES } from "@/lib/lineup";
 import { LineupEditor } from "./lineup-editor";
 
 export default async function AdminLineupPage() {
@@ -21,7 +21,7 @@ export default async function AdminLineupPage() {
         </p>
       </div>
 
-      <LineupEditor teams={teams} pool={pool} />
+      <LineupEditor teams={teams} pool={pool} lanes={LANES} />
     </section>
   );
 }

@@ -101,7 +101,7 @@ export default async function PublicLineupPage() {
               <span className="font-medium text-foreground">
                 {group.lane.toUpperCase()}
               </span>
-              <span>{group.teams.length} tim</span>
+              <span data-testid={`lane-count-${group.lane}`}>{group.teams.length} tim</span>
               {index < groups.length - 1 && (
                 <Separator orientation="vertical" className="h-4" />
               )}
