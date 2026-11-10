@@ -16,6 +16,10 @@ Default vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-
 
 Single-context: `GLOSSARY.md` at the repo root and `docs/adr/`. See `docs/agents/domain.md`.
 
+### Supabase
+
+This repo is Supabase-backed (Postgres + RLS + Auth). Load the `supabase` skill for any Supabase task, and `supabase-postgres-best-practices` before writing SQL, migrations, RLS policies, or indexes. Schema changes live in `supabase/migrations/` (imperative, one file per change); RLS proofs in `supabase/tests/rls_anon_write.sql`. Apply SQL with the Supabase MCP server (`execute_sql`).
+
 <!-- BEGIN:nextjs-agent-rules -->
 
 ## This is NOT the Next.js you know
