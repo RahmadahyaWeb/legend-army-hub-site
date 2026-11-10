@@ -99,13 +99,14 @@ test("tidak ada halaman atau tombol registrasi di aplikasi ini", async ({
   ).toHaveCount(0);
 });
 
-test.fixme(
-  "endpoint signup Supabase harus ditutup (Auth > Sign In / Providers > Email > Enable sign-ups = OFF)",
-  async ({ request }) => {
-    const settings = await request.get(
-      `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/settings`,
-    );
+test("endpoint signup Supabase sudah ditutup", async ({ request }) => {
+  // Endpoint settings butuh header apikey (kalau tidak, balasannya error object).
+  const settings = await request.get(
+    `${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/settings`,
+    {
+      headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY! },
+    },
+  );
 
-    expect((await settings.json()).disable_signup).toBe(true);
-  },
-);
+  expect((await settings.json()).disable_signup).toBe(true);
+});

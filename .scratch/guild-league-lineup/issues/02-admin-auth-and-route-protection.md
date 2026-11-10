@@ -6,22 +6,22 @@
 
 **Blocked by:** 01 — Bootstrap app, skema, dan lineup kosong yang tampil publik
 
-**Status:** ready-for-human
+**Status:** needs-triage
 
-> Implementasi kode **selesai dan terverifikasi** (18 test hijau, dijalankan terhadap build
+> Implementasi kode **selesai dan terverifikasi** (19 test hijau, dijalankan terhadap build
 > produksi `next start`, bukan hanya dev server).
-> Yang tersisa hanya **satu tindakan oleh owner**: mematikan tombol signup di dashboard
-> Supabase (itu setelan platform, tidak bisa dari kode). Service-role key sudah diisi
-> dan `npm run seed:admin` sudah berjalan.
+> Semua item owner sudah beres: service-role key diisi + `npm run seed:admin` jalan, dan signup
+> Supabase sudah dimatikan (`disable_signup=true`, endpoint balas `422 signup_disabled`).
+> Tidak ada lagi yang menunggu manusia — ticket dikembalikan ke maintainer untuk ditutup.
 
 - [x] Script seed membuat user admin dari env (`ADMIN_EMAIL`, `ADMIN_PASSWORD`) dan memberi role admin di `app_metadata` (server-set, bukan `user_metadata`). — `scripts/seed-admin.mjs` (`npm run seed:admin`), idempotent, menolak jalan kalau env wajib kosong.
 - [x] Halaman login memvalidasi kredensial lewat Supabase Auth; session bertahan setelah refresh halaman. — `/login` + server action `signInWithPassword`; cookie sesi ditulis klien SSR; e2e "sesi admin bertahan setelah halaman di-refresh" hijau.
 - [x] Route `/admin/*` yang diakses anonim → redirect ke halaman login; user login tanpa role admin → 403 Forbidden. — gerbang di `src/proxy.ts`: anonim → **307** ke `/login?next=…`, non-admin → **403** (status HTTP, bukan 200 + halaman "maaf").
-- [ ] Tidak ada UI registrasi maupun endpoint signup yang terbuka; satu-satunya jalur pembuatan akun adalah seed. — **separuh**: aplikasi tidak punya halaman/aksi signup (e2e: `/signup` → 404, tidak ada tombol/link daftar), tapi **endpoint signup milik Supabase masih terbuka** (`disable_signup=false`) dan itu setelan platform, bukan kode. Sisa: satu-satunya item owner di bawah + `npm run check:signup`.
+- [x] Tidak ada UI registrasi maupun endpoint signup yang terbuka; satu-satunya jalur pembuatan akun adalah seed. — aplikasi tidak punya halaman/aksi signup (e2e: `/signup` → 404, tidak ada tombol/link daftar), dan **endpoint signup Supabase sudah dimatikan** (`disable_signup=true`; percobaan signup → `422 signup_disabled`, 0 user baru dibuat). Test e2e `endpoint signup Supabase sudah ditutup` aktif dan hijau; `npm run check:signup` hijau.
 - [x] Policy write RLS berlaku untuk role admin dan menolak `anon` serta user non-admin pada insert/update/delete di ketiga tabel. — dibuktikan di SQL (claim JWT disimulasikan) dan di HTTP (token asli user non-admin).
 - [x] Service-role key hanya terbaca di server; build output dicek tidak memuatkannya di bundle client. — `scripts/check-no-service-role-leak.mjs` (`npm run check:leak`); diuji positif dengan kunci palsu yang disisipkan ke `.next/static`.
 - [x] Test SQL RLS: `anon` dan user non-admin ditolak pada ketiga tabel. — `supabase/tests/rls_anon_write.sql` (20 kasus) dijalankan terhadap DB project: semua lolos, data nyata tidak berubah.
-- [x] Test e2e: admin berhasil login dan melihat area admin; user non-admin melihat 403; anonim melihat halaman login. — `tests/auth.spec.ts` (8 kasus, 1 `fixme` untuk toggle signup platform).
+- [x] Test e2e: admin berhasil login dan melihat area admin; user non-admin melihat 403; anonim melihat halaman login. — `tests/auth.spec.ts` (8 kasus, 0 skipped; incl. assert signup platform tertutup).
 
 ## Comments
 
@@ -59,13 +59,17 @@ layout tetap ada sebagai pagar kedua untuk server action. `experimental.authInte
 ### Keputusan / penyimpangan dari spec
 
 1. **Akun dev awalnya dibuat lewat SQL** (saat service-role key belum ada), lalu **di-seed ulang lewat jalur resmi** `npm run seed:admin` setelah owner menempelkan `SUPABASE_SERVICE_ROLE_KEY` → hasilnya: `app_metadata` = `{"role":"admin"}` / `{"role":"member"}`, `user_metadata` hanya berisi `email_verified` (role TIDAK pernah ada di `user_metadata`), email terverifikasi. Jalur seed resmi sudah terbukti idempotent (user ada → "diperbarui"). Email & password akun dev **tidak ditulis di file ini** — hanya ada di `.env.local` (tidak di-commit): `admin@legendarmy.test` dan `member@legendarmy.test`. Passwordnya sudah dirotasi sekali (versi awal sempat tertulis di file ticket ini, tidak pernah masuk commit). **Owner wajib mengganti passwordnya sebelum deploy.**
-2. **Endpoint signup Supabase masih terbuka** (`disable_signup=false`) dan tidak bisa dimatikan lewat kode — itu setelan platform (Management API / dashboard). Yang bisa dikontrol aplikasi: tidak ada halaman signup, tidak ada `signUp()` di mana pun, tidak ada route handler signup. Sisa pekerjaan = owner mematikan "Enable sign-ups", setelah itu `npm run check:signup` harus hijau dan test `fixme` di `tests/auth.spec.ts` bisa diaktifkan. Sampai itu selesai, SC7 belum terpenuhi sepenuhnya.
+2. **Endpoint signup Supabase** tidak bisa dimatikan lewat kode (setelan platform) → dimatikan manual oleh owner di dashboard (Authentication → Sign In / Providers → Email → Enable sign-ups = OFF). Sekarang: `disable_signup=true`, `npm run check:signup` hijau, dan percobaan signup ditolak `422 signup_disabled`. Sisi aplikasi juga bersih: tidak ada halaman signup, tidak ada `signUp()` di mana pun, tidak ada route handler signup. **SC7 terpenuhi.**
 3. **`next` setelah login dibatasi path internal** (`safeRedirectPath`): menolak `//host`, path non-`/`, dan backslash (browser bisa menormalisasi `/\host` jadi `//host`).
 4. **Halaman 403 punya dua bentuk**: respons 403 dari proxy memakai HTML mandiri (tanpa CSS/JS aplikasi, supaya body tidak bergantung pada asset), sedangkan `src/app/forbidden.tsx` dipakai kalau `forbidden()` dilempar dari server action (UI penuh di dalam app).
 5. **Gerbang ada di proxy, bukan per-halaman**: `src/proxy.ts` matcher `/admin/:path*` → semua `/admin/*` (termasuk halaman ticket 03/04) terlindungi tanpa perlu mengingat aturan per file. Catatan untuk ticket berikutnya: **setiap server action yang menulis wajib memanggil `requireAdmin()`** — proxy hanya melindungi navigasi, bukan POST langsung ke action.
 
-### Yang belum selesai (perlu owner)
+### Yang belum selesai
 
-1. **Matikan signup Supabase**: dashboard → Authentication → Sign In / Providers → Email → **Enable sign-ups = OFF**. Verifikasi: `npm run check:signup` (dan aktifkan test `fixme` di `tests/auth.spec.ts`).
+Tidak ada. Semua item owner beres (service-role key + seed resmi jalan, signup dimatikan).
+
+Sisa catatan operasional: ganti password akun dev `admin@legendarmy.test` / `member@legendarmy.test`
+dengan password production-worthy sebelum deploy, dan putar (rotasi) service-role key kalau
+transkrip sesi tempat kuncinya dibagikan — `npm run seed:admin` idempotent, jadi aman dijalankan ulang.
 
 > Catatan: `SUPABASE_SERVICE_ROLE_KEY` sempat ditulis di dalam sesi chat saat owner menyerahkannya. Kalau transkrip sesi itu dibagikan, rotasi kunci di dashboard Supabase (Legacy API Keys → service_role) lalu tempel ulang ke `.env.local` dan jalankan `npm run seed:admin` lagi (idempotent).

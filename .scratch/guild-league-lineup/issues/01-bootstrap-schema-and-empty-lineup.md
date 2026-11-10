@@ -6,18 +6,17 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-human
+**Status:** needs-triage
 
 > Implementasi kode **selesai dan terverifikasi** (semua test hijau, sudah di-commit).
-> Yang tersisa hanya **satu tindakan oleh owner**: menempelkan nilai `SUPABASE_SERVICE_ROLE_KEY`
-> ke `.env.local` (lihat checkbox ke-2 dan bagian "Yang belum selesai" di bawah).
-> Status `ready-for-human` dipakai karena item tersisa itu memang hanya bisa dilakukan manusia
-> (mengambil credential dari dashboard Supabase).
+> Owner sudah menempelkan `SUPABASE_SERVICE_ROLE_KEY` ke `.env.local` (server-only, tanpa
+> prefix `NEXT_PUBLIC_`), jadi tidak ada lagi item yang menunggu manusia — ticket dikembalikan
+> ke maintainer untuk ditutup.
 
 - [x] Next.js (App Router, TypeScript, Tailwind, shadcn/ui) ter-scaffold di repo; `npm run dev` dan `npm run build` berjalan tanpa error.
-- [ ] Supabase project dibuat (organisasi & persetujuan biaya sudah dikonfirmasi user); URL, anon key, dan service-role key tersedia sebagai env var, service-role hanya di environment server. — **terpenuhi sebagian**: project `legend-army-hub` (ref `ugrldjoimmaqmcfkihlv`, region ap-southeast-1, biaya $0) + `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` sudah terisi di `.env.local`; `SUPABASE_SERVICE_ROLE_KEY` masih kosong — menunggu owner menempelkan nilainya dari dashboard (server-only, tanpa prefix `NEXT_PUBLIC_`).
+- [x] Supabase project dibuat (organisasi & persetujuan biaya sudah dikonfirmasi user); URL, anon key, dan service-role key tersedia sebagai env var, service-role hanya di environment server. — **terpenuhi**: project `legend-army-hub` (ref `ugrldjoimmaqmcfkihlv`, region ap-southeast-1, biaya $0) + `NEXT_PUBLIC_SUPABASE_URL` + `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` + `SUPABASE_SERVICE_ROLE_KEY` sudah terisi di `.env.local` (server-only, tanpa prefix `NEXT_PUBLIC_`; `npm run check:leak` membuktikan kuncinya tidak ada di build output).
 - [x] Migrasi SQL membuat tabel member, tim, dan slot lineup beserta index, sesuai model data di spec §4.2 (nama kolom boleh berubah, tapi relasi dan aturan slot — 12 tim, 5 slot per tim, 1 member per slot, 1 tim per member — harus sama).
-- [x] RLS aktif di ketiga tabel: policy select untuk `anon` + `authenticated`; policy write hanya untuk role admin (penetapan role menyusul di ticket 02, sementara ini write ditolak untuk semua role).
+- [x] RLS aktif di ketiga tabel: policy select untuk `anon` + `authenticated`; policy write hanya untuk role admin (penetapan role lewat `app_metadata` sudah dikerjakan di ticket 02).
 - [x] Tabel tim ter-seed 12 baris dengan lane default 4 top, 4 mid, 4 bot.
 - [x] Halaman publik `/` menampilkan 12 tim yang dikelompokkan per lane, tiap tim punya 5 slot berlabel "Kosong".
 - [x] Audit checklist shadcn dijalankan; tidak ada item gagal.

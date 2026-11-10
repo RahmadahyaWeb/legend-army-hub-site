@@ -122,10 +122,14 @@ sebagai pagar kedua untuk server action, dengan UI di `src/app/forbidden.tsx`.
 `experimental.authInterrupts` diaktifkan supaya `forbidden()` dari `next/navigation`
 tampil sebagai UI 403 (bukan exception generik).
 
-## Yang masih perlu tindakan owner
+## Catatan operasional
 
-1. **Signup Supabase masih terbuka.** Di dashboard: Authentication → Sign In / Providers →
-   Email → **Enable sign-ups = OFF**. Setelah itu `npm run check:signup` harus hijau.
+- **Signup Supabase sudah dimatikan** (`disable_signup=true`). Cek ulang dengan
+  `npm run check:signup`; test e2e yang sama ikut memverifikasi tiap build.
+- **Ganti password akun dev** (`admin@legendarmy.test` / `member@legendarmy.test`) dengan
+  password production-worthy sebelum deploy, lalu jalankan `npm run seed:admin` lagi.
+- **Putar service-role key** kalau pernah dibagikan (mis. di chat/issue). Kuncinya hanya
+  perlu di environment server — `npm run check:leak` membuktikan kuncinya tidak masuk bundle.
 
 ## Struktur
 
