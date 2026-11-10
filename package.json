@@ -14,6 +14,7 @@
     "check:signup": "node scripts/check-signup-closed.mjs"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
     "@supabase/ssr": "^0.7.0",
     "@supabase/supabase-js": "^2.58.0",
     "class-variance-authority": "^0.7.1",

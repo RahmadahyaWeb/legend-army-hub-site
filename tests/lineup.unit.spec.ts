@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { groupByLane, SLOTS_PER_TEAM, type LineupTeam } from "@/lib/lineup";
+import { groupByLane, SLOTS_PER_TEAM, slotAssignError, type LineupTeam } from "@/lib/lineup";
 
 function team(position: number, lane: LineupTeam["lane"]): LineupTeam {
   return {
@@ -31,4 +31,35 @@ test("lane tanpa tim tetap muncul supaya ringkasan jumlah tim per lane lengkap",
 
   expect(groups).toHaveLength(3);
   expect(groups.find((group) => group.lane === "bot")?.teams).toEqual([]);
+});
+
+// Race antar admin: constraint database adalah sumber kebenaran, jadi pesannya
+// dipetakan dari SQLSTATE + nama constraint, bukan dari teks bebas PostgREST.
+test("pelanggaran constraint dipetakan ke pesan yang bisa dimengerti", () => {
+  expect(
+    slotAssignError({
+      code: "23505",
+      message:
+        'duplicate key value violates unique constraint "lineup_slots_member_id_key"',
+    }),
+  ).toBe("Member ini sudah ada di tim lain.");
+
+  expect(
+    slotAssignError({
+      code: "23505",
+      message: 'duplicate key value violates unique constraint "lineup_slots_pkey"',
+    }),
+  ).toBe("Slot sudah terisi member lain.");
+
+  expect(
+    slotAssignError({
+      code: "23503",
+      message:
+        'insert or update on table "lineup_slots" violates foreign key constraint "lineup_slots_member_id_fkey"',
+    }),
+  ).toBe("Member tidak ditemukan.");
+
+  expect(slotAssignError({ code: "XX000", message: "boom" })).toBe(
+    "Gagal menyimpan: boom",
+  );
 });

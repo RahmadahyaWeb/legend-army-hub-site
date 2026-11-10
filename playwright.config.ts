@@ -7,6 +7,9 @@ if (existsSync(".env.local")) process.loadEnvFile(".env.local");
 export default defineConfig({
   testDir: "./tests",
   fullyParallel: true,
+  // Semua spec memakai satu database dev yang sama dan import bersifat
+  // replace-all: menjalankan spec paralel membuat data saling menimpa.
+  workers: 1,
   forbidOnly: !!process.env.CI,
   reporter: "list",
   use: {

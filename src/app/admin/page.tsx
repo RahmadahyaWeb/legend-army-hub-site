@@ -40,12 +40,15 @@ export default function AdminPage() {
               </Link>
             </li>
             <li className="flex items-start gap-3">
-              <Badge variant="outline" className="mt-0.5 shrink-0">
-                Segera
+              <Badge variant="secondary" className="mt-0.5 shrink-0">
+                Aktif
               </Badge>
-              <span className="text-foreground">
+              <Link
+                href="/admin/lineup"
+                className="text-foreground underline underline-offset-4"
+              >
                 Editor lineup drag &amp; drop (ticket 04).
-              </span>
+              </Link>
             </li>
           </ul>
         </CardContent>

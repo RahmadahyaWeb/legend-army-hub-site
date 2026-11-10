@@ -7,6 +7,8 @@ export const LANES = ["top", "mid", "bot"] as const satisfies readonly Lane[];
 
 export const SLOTS_PER_TEAM = 5;
 
+export const TEAMS_PER_LINEUP = 12;
+
 export type LineupMember = Pick<
   Tables<"guild_members">,
   "id" | "player_name" | "class_name" | "guild_rank" | "gear_score"
@@ -33,6 +35,56 @@ export function groupByLane(teams: LineupTeam[]): LineupLaneGroup[] {
 
 /** Kunci slot lineup: satu member maksimal satu tim. */
 const slotKey = (teamPosition: number, slotNo: number) => `${teamPosition}:${slotNo}`;
+
+/** Pelanggaran constraint saat assign -> pesan yang bisa dimengerti admin.
+ *  Kode SQLSTATE dipakai, bukan teks bebas; nama constraint membedakan
+ *  "member dobel" (lineup_slots_member_id_key) dari "slot dobel" (pkey). */
+export function slotAssignError(error: { code?: string; message: string }): string {
+  if (error.code === "23505") {
+    return error.message.includes("member_id")
+      ? "Member ini sudah ada di tim lain."
+      : "Slot sudah terisi member lain.";
+  }
+  if (error.code === "23503") {
+    return "Member tidak ditemukan.";
+  }
+  return `Gagal menyimpan: ${error.message}`;
+}
+
+/** Member di panel pool + posisi slotnya (null = belum punya tim). */
+export type PoolMember = LineupMember & {
+  teamPosition: number | null;
+  slotNo: number | null;
+};
+
+/** Panel pool: seluruh member guild, diurutkan nama, lengkap dengan slotnya. */
+export async function getPoolMembers(): Promise<PoolMember[]> {
+  const supabase = await createClient();
+
+  const [membersResult, slotsResult] = await Promise.all([
+    supabase
+      .from("guild_members")
+      .select("id, player_name, class_name, guild_rank, gear_score")
+      .order("player_name"),
+    supabase.from("lineup_slots").select("team_position, slot_no, member_id"),
+  ]);
+
+  if (membersResult.error) throw membersResult.error;
+  if (slotsResult.error) throw slotsResult.error;
+
+  const slotByMember = new Map<string, { teamPosition: number; slotNo: number }>();
+  for (const slot of slotsResult.data) {
+    slotByMember.set(slot.member_id, {
+      teamPosition: slot.team_position,
+      slotNo: slot.slot_no,
+    });
+  }
+
+  return membersResult.data.map((member) => ({
+    ...member,
+    ...(slotByMember.get(member.id) ?? { teamPosition: null, slotNo: null }),
+  }));
+}
 
 /** Lineup aktif: 12 tim + 5 slot per tim (slot tanpa member = null). */
 export async function getLineup(): Promise<LineupTeam[]> {
