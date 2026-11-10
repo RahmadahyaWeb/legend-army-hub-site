@@ -2,7 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/auth";
-import { MAX_IMPORT_BYTES, parseMemberCsv, type RejectedRow } from "@/lib/csv";
+import {
+  MAX_IMPORT_BYTES,
+  parseMemberCsv,
+  type MemberRow,
+  type RejectedRow,
+} from "@/lib/csv";
 import { createClient } from "@/lib/supabase/server";
 
 // Import CSV member (spec .scratch/guild-league-lineup/spec.md §4.3, US-1).
@@ -42,12 +47,40 @@ export type ImportFailure = { status: "error"; error: string };
 
 export type ImportResult = ImportPreview | ImportReport | ImportFailure;
 
+// Tipe baris yang ditolak juga dipakai komponen UI.
+export type { RejectedRow } from "@/lib/csv";
+
 type ImportRpcResult = {
   deleted: number;
   imported: number;
   relinked: number;
   dropped: { player_name: string; team_position: number; slot_no: number }[];
 };
+
+type PreparedImport = {
+  file: File;
+  members: MemberRow[];
+  rejected: RejectedRow[];
+};
+
+/** Bentuk jsonb dari fungsi Postgres, dicek sebelum dipakai (trust boundary). */
+function isImportRpcResult(data: unknown): data is ImportRpcResult {
+  if (typeof data !== "object" || data === null) return false;
+  const result = data as Record<string, unknown>;
+
+  return (
+    typeof result.deleted === "number" &&
+    typeof result.imported === "number" &&
+    typeof result.relinked === "number" &&
+    Array.isArray(result.dropped)
+  );
+}
+
+const formatMb = (bytes: number) =>
+  (bytes / (1024 * 1024)).toLocaleString("id-ID", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
 
 /** Baca file dari FormData + enforces batas ukuran sebelum isinya diparse. */
 async function readCsvFile(
@@ -60,18 +93,17 @@ async function readCsvFile(
   }
 
   if (file.size > MAX_IMPORT_BYTES) {
-    const size = (file.size / (1024 * 1024)).toFixed(1);
     return {
       status: "error",
-      error: `File terlalu besar: ${size} MB (maksimal 5 MB).`,
+      error: `File terlalu besar: ${formatMb(file.size)} MB (maksimal 5 MB).`,
     };
   }
 
   return { file, text: await file.text() };
 }
 
-/** Pratinjau: file dicek dulu, tanpa mengubah data apa pun. */
-export async function previewImportAction(formData: FormData): Promise<ImportResult> {
+/** Gate admin + validasi file. Dipakai kedua action supaya aturannya sama. */
+async function prepareImport(formData: FormData): Promise<PreparedImport | ImportFailure> {
   await requireAdmin();
 
   const read = await readCsvFile(formData);
@@ -79,6 +111,14 @@ export async function previewImportAction(formData: FormData): Promise<ImportRes
 
   const parsed = parseMemberCsv(read.text);
   if (!parsed.ok) return { status: "error", error: parsed.error };
+
+  return { file: read.file, members: parsed.members, rejected: parsed.rejected };
+}
+
+/** Pratinjau: file dicek dulu, tanpa mengubah data apa pun. */
+export async function previewImportAction(formData: FormData): Promise<ImportResult> {
+  const prepared = await prepareImport(formData);
+  if ("status" in prepared) return prepared;
 
   const supabase = await createClient();
   const { count, error } = await supabase
@@ -91,25 +131,20 @@ export async function previewImportAction(formData: FormData): Promise<ImportRes
 
   return {
     status: "preview",
-    fileName: read.file.name,
-    accepted: parsed.members.length,
-    rejected: parsed.rejected,
+    fileName: prepared.file.name,
+    accepted: prepared.members.length,
+    rejected: prepared.rejected,
     currentMembers: count ?? 0,
-    sampleNames: parsed.members.slice(0, MAX_SAMPLE_NAMES).map((m) => m.playerName),
+    sampleNames: prepared.members.slice(0, MAX_SAMPLE_NAMES).map((m) => m.playerName),
   };
 }
 
 /** Import: replace-all (semua member lama dihapus) + relink lineup by nama. */
 export async function runImportAction(formData: FormData): Promise<ImportResult> {
-  await requireAdmin();
+  const prepared = await prepareImport(formData);
+  if ("status" in prepared) return prepared;
 
-  const read = await readCsvFile(formData);
-  if ("status" in read) return read;
-
-  const parsed = parseMemberCsv(read.text);
-  if (!parsed.ok) return { status: "error", error: parsed.error };
-
-  const payload = parsed.members.map((member) => ({
+  const payload = prepared.members.map((member) => ({
     source_id: member.sourceId,
     player_name: member.playerName,
     level: member.level,
@@ -131,24 +166,26 @@ export async function runImportAction(formData: FormData): Promise<ImportResult>
     return { status: "error", error: `Import gagal: ${error.message}` };
   }
 
+  if (!isImportRpcResult(data)) {
+    return { status: "error", error: "Import gagal: format hasil database tidak dikenali." };
+  }
+
   // Data member berubah -> halaman lineup publik & area admin harus segar.
   revalidatePath("/");
   revalidatePath("/admin/members");
 
-  const result = data as ImportRpcResult;
-
   return {
     status: "done",
-    fileName: read.file.name,
-    accepted: result.imported,
-    rejected: parsed.rejected,
-    deleted: result.deleted,
-    relinked: result.relinked,
-    dropped: result.dropped.map((slot) => ({
+    fileName: prepared.file.name,
+    accepted: data.imported,
+    rejected: prepared.rejected,
+    deleted: data.deleted,
+    relinked: data.relinked,
+    dropped: data.dropped.map((slot) => ({
       playerName: slot.player_name,
       teamPosition: slot.team_position,
       slotNo: slot.slot_no,
     })),
-    sampleNames: parsed.members.slice(0, MAX_SAMPLE_NAMES).map((m) => m.playerName),
+    sampleNames: prepared.members.slice(0, MAX_SAMPLE_NAMES).map((m) => m.playerName),
   };
 }

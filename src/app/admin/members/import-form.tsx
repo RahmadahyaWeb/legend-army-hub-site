@@ -5,7 +5,9 @@ import {
   previewImportAction,
   runImportAction,
   type ImportResult,
+  type RejectedRow,
 } from "@/app/admin/members/actions";
+import { MAX_IMPORT_BYTES } from "@/lib/csv";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +19,55 @@ function makeFormData(file: File): FormData {
   const fd = new FormData();
   fd.append("file", file);
   return fd;
+}
+
+function RejectedRows({ rows }: { rows: RejectedRow[] }) {
+  if (rows.length === 0) return null;
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-medium">Baris ditolak</p>
+      <div
+        data-testid="import-rejected-list"
+        className="max-h-40 overflow-y-auto rounded-lg border text-sm"
+      >
+        {rows.map((row) => (
+          <div
+            key={row.rowNumber}
+            className="flex items-start gap-3 border-b px-3 py-2 last:border-b-0"
+          >
+            <span className="shrink-0 text-xs text-muted-foreground">
+              Baris {row.rowNumber}
+            </span>
+            <span className="flex-1">{row.reason}</span>
+            {row.playerName ? (
+              <span className="shrink-0 text-muted-foreground">
+                {row.playerName}
+              </span>
+            ) : null}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function SampleNames({ names }: { names: string[] }) {
+  if (names.length === 0) return null;
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-medium">Contoh nama yang masuk</p>
+      <div
+        data-testid="import-preview-names"
+        className="flex flex-wrap gap-1.5"
+      >
+        {names.map((name) => (
+          <Badge key={name} variant="secondary">
+            {name}
+          </Badge>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export function ImportForm() {
@@ -36,6 +87,18 @@ export function ImportForm() {
 
   const handlePreview = () => {
     if (!file) return;
+    if (file.size > MAX_IMPORT_BYTES) {
+      const sizeMB = (file.size / (1024 * 1024)).toLocaleString("id-ID", {
+        minimumFractionDigits: 1,
+        maximumFractionDigits: 1,
+      });
+      setResult({
+        status: "error",
+        error: `File terlalu besar: ${sizeMB} MB (maksimal 5 MB).`,
+      });
+      setView("idle");
+      return;
+    }
     startTransition(async () => {
       const res = await previewImportAction(makeFormData(file));
       setResult(res);
@@ -52,12 +115,6 @@ export function ImportForm() {
         setView("report");
       }
     });
-  };
-
-  const handleCancel = () => {
-    setView("idle");
-    setResult(null);
-    setFile(null);
   };
 
   const handleReset = () => {
@@ -115,7 +172,7 @@ export function ImportForm() {
           open
           onOpenChange={(open) => {
             if (!open && view === "preview") {
-              handleCancel();
+              handleReset();
             }
           }}
         >
@@ -178,48 +235,9 @@ export function ImportForm() {
                 </div>
               </div>
 
-              {preview.rejected.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Baris ditolak</p>
-                  <div
-                    data-testid="import-rejected-list"
-                    className="max-h-40 overflow-y-auto rounded-lg border text-sm"
-                  >
-                    {preview.rejected.map((row) => (
-                      <div
-                        key={row.rowNumber}
-                        className="flex items-start gap-3 border-b px-3 py-2 last:border-b-0"
-                      >
-                        <span className="shrink-0 text-xs text-muted-foreground">
-                          Baris {row.rowNumber}
-                        </span>
-                        <span className="flex-1">{row.reason}</span>
-                        {row.playerName ? (
-                          <span className="shrink-0 text-muted-foreground">
-                            {row.playerName}
-                          </span>
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <RejectedRows rows={preview.rejected} />
 
-              {preview.sampleNames.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Contoh nama yang masuk</p>
-                  <div
-                    data-testid="import-preview-names"
-                    className="flex flex-wrap gap-1.5"
-                  >
-                    {preview.sampleNames.map((name) => (
-                      <Badge key={name} variant="secondary">
-                        {name}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
+              <SampleNames names={preview.sampleNames} />
 
               <div className="rounded-lg bg-destructive/10 p-4 text-sm text-destructive">
                 <div className="flex items-start gap-3">
@@ -240,7 +258,7 @@ export function ImportForm() {
                   type="button"
                   variant="outline"
                   disabled={isPending}
-                  onClick={handleCancel}
+                  onClick={handleReset}
                 >
                   Batal
                 </Button>
@@ -301,32 +319,7 @@ export function ImportForm() {
             </div>
           </div>
 
-          {report.rejected.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Baris ditolak</p>
-              <div
-                data-testid="import-rejected-list"
-                className="max-h-40 overflow-y-auto rounded-lg border text-sm"
-              >
-                {report.rejected.map((row) => (
-                  <div
-                    key={row.rowNumber}
-                    className="flex items-start gap-3 border-b px-3 py-2 last:border-b-0"
-                  >
-                    <span className="shrink-0 text-xs text-muted-foreground">
-                      Baris {row.rowNumber}
-                    </span>
-                    <span className="flex-1">{row.reason}</span>
-                    {row.playerName ? (
-                      <span className="shrink-0 text-muted-foreground">
-                        {row.playerName}
-                      </span>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          <RejectedRows rows={report.rejected} />
 
           <div className="space-y-2">
             <p className="text-sm font-medium">Member yang kehilangan slot</p>
@@ -352,21 +345,7 @@ export function ImportForm() {
             </div>
           </div>
 
-          {report.sampleNames.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Contoh nama yang masuk</p>
-              <div
-                data-testid="import-preview-names"
-                className="flex flex-wrap gap-1.5"
-              >
-                {report.sampleNames.map((name) => (
-                  <Badge key={name} variant="secondary">
-                    {name}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
+          <SampleNames names={report.sampleNames} />
 
           <Button type="button" onClick={handleReset}>
             Import file lain

@@ -73,7 +73,7 @@ const isBlankRow = (row: string[]) =>
 
 const isInteger = (value: string) => /^-?\d+$/.test(value);
 
-function headerError(
+function fileError(
   error: string,
   missing: string[] = [],
   unexpected: string[] = [],
@@ -97,7 +97,7 @@ export function parseMemberCsv(text: string): CsvParseResult {
   // Sisa byte yang tidak valid UTF-8 jadi U+FFFD -> nama member akan rusak
   // diam-diam. Tolak file-nya, suruh ekspor ulang sebagai UTF-8.
   if (clean.includes("\uFFFD")) {
-    return headerError(
+    return fileError(
       "File bukan UTF-8 (kemungkinan encoding lain). Simpan ulang file sebagai UTF-8 lalu import lagi.",
     );
   }
@@ -115,7 +115,7 @@ export function parseMemberCsv(text: string): CsvParseResult {
   }
 
   const rows = parsed.data;
-  if (rows.length === 0) return headerError("File CSV kosong.");
+  if (rows.length === 0) return fileError("File CSV kosong.");
 
   const header = rows[0];
   const dataRows = rows
@@ -124,7 +124,7 @@ export function parseMemberCsv(text: string): CsvParseResult {
     .filter(({ row }) => !isBlankRow(row));
 
   if (dataRows.length > MAX_IMPORT_ROWS) {
-    return headerError(
+    return fileError(
       `File terlalu banyak baris: ${dataRows.length} baris data (maksimal ${MAX_IMPORT_ROWS}).`,
     );
   }
@@ -152,7 +152,7 @@ export function parseMemberCsv(text: string): CsvParseResult {
     if (unexpected.length) parts.push(`kolom tidak dikenal: ${unexpected.join(", ")}`);
     if (duplicated.length) parts.push(`kolom muncul lebih dari sekali: ${duplicated.join(", ")}`);
 
-    return headerError(
+    return fileError(
       `Header CSV tidak sesuai. ${parts.join(". ")}. Import ditolak utuh, tidak ada data yang berubah.`,
       missing,
       unexpected,

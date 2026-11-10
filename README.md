@@ -72,7 +72,7 @@ Aturan main (spec §4.3, US-1):
 | Baris bermasalah | Ditolak **per baris** (nilai non-numerik, jumlah kolom ≠ 12, nama kosong, `Player` duplikat) — file lain tetap masuk. |
 | Replace-all | Isi tabel member setelah import = persis isi CSV. Member lama yang tidak ada di CSV hilang. |
 | Lineup | Slot lineup dipertahankan **by nama** (case-insensitive). Member yang tidak ada di CSV → slot kosong + namanya muncul di laporan. |
-| Batas | File > 5 MB atau > 2000 baris data ditolak, ditegakkan di server (`src/lib/csv.ts` + `MAX_IMPORT_BYTES`). |
+| Batas | File > 5 MB atau > 2000 baris data ditolak, ditegakkan di server (`src/lib/csv.ts` + `MAX_IMPORT_BYTES`). Browser juga mengecek ukuran file lebih dulu supaya admin dapat pesan jelas, bukan error platform. |
 
 Penulisan data lewat fungsi Postgres `import_members()`: snapshot lineup → hapus member
 lama → insert member baru → bangun ulang slot by nama, **satu transaksi**. Kalau satu
@@ -148,9 +148,11 @@ wajib hilang / kolom tak dikenal / urutan bebas / case-insensitive), penolakan p
 bukan UTF-8, nama non-Latin & emoji, dan fixture `import.csv` → 148 diterima, 0 ditolak.
 
 `tests/import-members.spec.ts` (e2e, memakai database dev): admin login → pratinjau →
-konfirmasi → laporan; import `import.csv` (148 baris) → 148 diterima, 0 ditolak, isi
-tabel member = persis isi CSV; header salah → ditolak tanpa mengubah data; anonim tidak
-bisa menyentuh form import.
+konfirmasi → laporan; import `import.csv` (148 baris) → 148 diterima, 0 ditolak, selesai
+< 5 detik (SC1), isi tabel member = persis isi CSV; header salah → ditolak tanpa mengubah
+data; file > 5 MB → ditolak dengan pesan jelas; lineup 3 slot → import CSV tanpa 1 member →
+2 slot tetap terisi, 1 kosong, dan namanya muncul di laporan (SC2); anonim tidak bisa
+menyentuh form import.
 
 > Test e2e import memakai database dev sungguhan dan sifatnya **replace-all** — isi
 > `guild_members` setelah test = isi file yang terakhir diimpor.
