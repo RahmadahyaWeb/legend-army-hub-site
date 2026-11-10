@@ -204,5 +204,50 @@ tests/                       Uji Playwright (e2e + unit)
 
 ## Deploy (Netlify)
 
-Build command `npm run build`, publish dir default Next.js runtime. Set seluruh env var
-di Netlify UI. `SUPABASE_SERVICE_ROLE_KEY` hanya boleh di environment server.
+Build command `npm run build`, publish dir default Next.js runtime (OpenNext,
+`@netlify/plugin-nextjs` dipasang otomatis oleh Netlify — jangan di-pin di repo).
+`SUPABASE_SERVICE_ROLE_KEY` hanya boleh di environment server.
+
+### Runbook deploy
+
+1. **Repo** — push branch produksi (`main`) ke GitHub, lalu hubungkan repo itu ke site
+   Netlify baru (bukan project lama). Build otomatis jalan tiap push.
+2. **Env var di Netlify** (Project configuration → Environment variables), scope
+   Builds + Functions:
+
+   | Variabel | Nilai |
+   | -------- | ----- |
+   | `NEXT_PUBLIC_SUPABASE_URL` | URL project Supabase |
+   | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | kunci publishable (`sb_publishable_…`) |
+   | `SUPABASE_SERVICE_ROLE_KEY` | service-role key — **server-only**, jangan `NEXT_PUBLIC_` |
+   | `ADMIN_EMAIL` | email admin hasil seed |
+   | `ADMIN_PASSWORD` | password admin hasil seed |
+   | `TEST_MEMBER_EMAIL` / `TEST_MEMBER_PASSWORD` | opsional, akun non-admin untuk e2e 403 |
+
+   Perubahan env var baru berlaku setelah **redeploy**. Setelah env terpasang, jalankan
+   `npm run seed:admin` sekali dari mesin lokal (atau dari build hook sekali jalan) supaya
+   akun admin ada di project produksi.
+3. **Verifikasi build** — `npm run build && npm run check:leak`: service-role key tidak
+   boleh muncul di `.next/static`.
+4. **Verifikasi produksi** — buka domain Netlify: halaman lineup & member tampil,
+   login admin, import CSV (lihat bagian *Import CSV member*), drag & drop lineup,
+   import ulang mempertahankan lineup. Uji tulis `anon` lewat PostgREST memakai
+   publishable key harus ditolak (RLS).
+5. **Lighthouse mobile** — jalankan pada URL produksi untuk `/` dan `/members`:
+   `npx lighthouse <url> --preset=perf --form-factor=mobile --only-categories=performance,accessibility --chrome-flags="--headless=new"`.
+   Target: Performance ≥ 90, Accessibility ≥ 90, LCP < 2.0 dtk.
+
+### Supabase free-tier ter-pause
+
+Project free-tier di-pause setelah ±1 minggu tanpa aktivitas; situs akan error sampai
+project dibangunkan.
+
+1. Buka dashboard Supabase → pilih project → **Restore project** (atau `restore_project`
+   lewat Supabase MCP). Proses wake butuh beberapa menit.
+2. Tunggu status `ACTIVE_HEALTHY`, lalu buka domain produksi — URL dan key tidak berubah,
+   jadi tidak perlu mengubah env var Netlify.
+3. Kalau build/deploy terakhir gagal karena database tidur, trigger **Deploy** ulang di
+   Netlify setelah project sehat.
+
+Cegah pause dengan aktivitas berkala (mis. query ringan dari uptime monitor) atau upgrade
+ke plan berbayar.
