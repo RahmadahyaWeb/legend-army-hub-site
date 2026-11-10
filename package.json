@@ -8,7 +8,10 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "test": "playwright test"
+    "test": "playwright test",
+    "seed:admin": "node scripts/seed-admin.mjs",
+    "check:leak": "node scripts/check-no-service-role-leak.mjs",
+    "check:signup": "node scripts/check-signup-closed.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.7.0",
