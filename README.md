@@ -124,11 +124,7 @@ tampil sebagai UI 403 (bukan exception generik).
 
 ## Yang masih perlu tindakan owner
 
-1. **`SUPABASE_SERVICE_ROLE_KEY`** masih kosong di `.env.local` → `npm run seed:admin`
-   belum bisa dijalankan (akun admin saat ini dibuat manual lewat SQL, lihat ticket 02).
-   Ambil dari dashboard Supabase → Project Settings → API Keys → **Legacy API Keys →
-   service_role** (atau **Secret keys** → `sb_secret_…`).
-2. **Signup Supabase masih terbuka.** Di dashboard: Authentication → Sign In / Providers →
+1. **Signup Supabase masih terbuka.** Di dashboard: Authentication → Sign In / Providers →
    Email → **Enable sign-ups = OFF**. Setelah itu `npm run check:signup` harus hijau.
 
 ## Struktur
