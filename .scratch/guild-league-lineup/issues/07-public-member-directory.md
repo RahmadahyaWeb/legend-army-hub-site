@@ -6,14 +6,14 @@
 
 **Blocked by:** 04 — Editor lineup drag & drop
 
-**Status:** ready-for-agent
+**Status:** needs-triage
 
-- [ ] Halaman `/members` publik menampilkan seluruh member dalam tabel: nama, class, rank guild, gear score, status online, weekly & total contribution.
-- [ ] Search nama (contains, case-insensitive), filter rank guild / class / status online, dan sort (gear score, weekly, weekly contribution, total contribution, nama asc/desc) dieksekusi di server lewat query terindeks — bukan menyaring 148 baris di browser.
-- [ ] Member yang punya slot lineup menampilkan badge "Lineup" + nama timnya.
-- [ ] Filter dan sort bertahan di URL (search params) sehingga halaman bisa di-share dan di-bookmark.
-- [ ] Halaman responsif di mobile dan LCP < 2.0 detik pada koneksi 4G mobile.
-- [ ] Test e2e: search + filter + sort menghasilkan baris yang benar, dan URL hasil filter bisa dibuka ulang dengan hasil sama.
+- [x] Halaman `/members` publik menampilkan seluruh member dalam tabel: nama, class, rank guild, gear score, status online, weekly & total contribution.
+- [x] Search nama (contains, case-insensitive), filter rank guild / class / status online, dan sort (gear score, weekly, weekly contribution, total contribution, nama asc/desc) dieksekusi di server lewat query terindeks — bukan menyaring 148 baris di browser.
+- [x] Member yang punya slot lineup menampilkan badge "Lineup" + nama timnya.
+- [x] Filter dan sort bertahan di URL (search params) sehingga halaman bisa di-share dan di-bookmark.
+- [x] Halaman responsif di mobile dan LCP < 2.0 detik pada koneksi 4G mobile.
+- [x] Test e2e: search + filter + sort menghasilkan baris yang benar, dan URL hasil filter bisa dibuka ulang dengan hasil sama.
 
 ## Comments
 

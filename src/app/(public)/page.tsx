@@ -1,4 +1,6 @@
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -86,13 +88,18 @@ export default async function PublicLineupPage() {
   return (
     <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
-        <div className="mb-6 space-y-2">
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            Legend Army Hub
-          </h1>
-          <p className="text-muted-foreground">
-            Susunan tim Guild League Legend Army.
-          </p>
+        <div className="mb-6 flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-2">
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+              Legend Army Hub
+            </h1>
+            <p className="text-muted-foreground">
+              Susunan tim Guild League Legend Army.
+            </p>
+          </div>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/members">Direktori member</Link>
+          </Button>
         </div>
 
         <div className="mb-8 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
