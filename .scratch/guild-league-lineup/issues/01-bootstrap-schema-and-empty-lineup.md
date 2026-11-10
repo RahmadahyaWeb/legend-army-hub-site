@@ -26,7 +26,7 @@
 - **Migrasi** `supabase/migrations/20261110115957_init_lineup_schema.sql` (sudah diterapkan ke project):
   `guild_members` / `teams` / `lineup_slots` + index `idx_members_gear_score`, `idx_members_rank_class`, `idx_members_online`; seed 12 tim (position 1–4 `top`, 5–8 `mid`, 9–12 `bot`).
   Relasi dijaga constraint DB: `lineup_slots.member_id` UNIQUE (1 member = 1 tim), PK `(team_position, slot_no)` + `check (slot_no between 1 and 5)`, FK `teams(position)` ON DELETE CASCADE.
-- **RLS** aktif di ketiga tabel. Select: policy untuk `anon` + `authenticated`. Write: policy `admin writes …` dengan syarat `(auth.jwt() -> 'app_meta_data' ->> 'role') = 'admin'`. Belum ada admin yang di-seed (ticket 02), jadi secara efektif write ditolak untuk semua role saat ini.
+- **RLS** aktif di ketiga tabel. Select: policy untuk `anon` + `authenticated`. Write: policy `admin writes …` dengan syarat `(auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'`. Belum ada admin yang di-seed (ticket 02), jadi secara efektif write ditolak untuk semua role saat ini.
 - **App**: Next.js 16.4.6 (App Router, TS, Tailwind v4, shadcn/ui `radix-nova`), React 19. Halaman publik `src/app/(public)/page.tsx` (server component) + `src/lib/lineup.ts` (query lineup + `groupByLane`) + `src/lib/supabase/server.ts` (klien SSR).
 - **Test**: `npm test` (Playwright) = 7/7 hijau — 2 unit (`groupByLane`), 4 RLS HTTP (`tests/rls.spec.ts`), 1 e2e halaman publik (`tests/lineup-page.spec.ts`: 12 kartu tim, 60 badge "Kosong", 3 kelompok lane).
 - **Test RLS SQL**: `supabase/tests/rls_anon_write.sql` — dijalankan terhadap DB project, semua assert lolos (penolakan SQLSTATE `42501`, baca tetap boleh).
@@ -41,6 +41,20 @@
 3. **Types database di-generate** (`src/lib/supabase/database.types.ts`) dan Klien Supabase di-typed dengan `Database`. Ini menghapus unsafe cast pada embed `lineup_slots → guild_members` dan membuat `isOneToOne` (embed jadi objek, bukan array) terjamin oleh tipe.
 4. **Tidak ada dependency baru di luar daftar spec**: hanya `next`, `react`, `tailwindcss`, shadcn/ui, plus `@supabase/supabase-js` + `@supabase/ssr` (wajib) dan `@playwright/test` (e2e, wajib §4.6). `dnd-kit` dan `papaparse` **tidak** dipasang — dipakai ticket 04 & 03.
 
+### Hasil code review (2 sumbu: Standards + Spec)
+
+Review dijalankan terhadap commit `21348ac` (fixed point = empty tree). Temuan penting:
+
+1. **BUG KRITIS — claim JWT admin salah ejaan.** Policy write memakai `auth.jwt() -> 'app_meta_data'`, padahal Supabase menaruh role admin di claim **`app_metadata`**. Akibatnya policy selalu NULL → **admin pun tidak akan pernah bisa menulis**, termasuk setelah ticket 02 men-seed role. Spec §4.4/§4.5 ikut salah ejaan, jadi sumbernya diperbaiki di spec + kedua ticket.
+   - Perbaikan: migrasi baru `supabase/migrations/20261110123000_fix_admin_policy_claim.sql` (drop + recreate 3 policy).
+   - Bukti empiris (lihat `supabase/tests/rls_anon_write.sql` §8–10, memakai `request.jwt.claims`): `app_metadata.role=admin` → write **berhasil**; `app_metadata.role=member` → ditolak; ejaan lama `app_meta_data` → ditolak. Regresi ini kini terkunci oleh test.
+2. **Font tidak pernah terpakai.** `globals.css` memetakan `--font-sans: var(--font-sans)` (self-reference) sementara `layout.tsx` mendeklarasikan `--font-geist-sans` → `font-sans` tidak resolve, halaman dirender dengan font serif bawaan browser. Diperbaiki: `layout.tsx` sekarang mendeklarasikan `--font-sans`. Verified: `font-family` = `Geist, "Geist Fallback"`.
+3. **Test RLS HTTP bisa merusak data.** `PATCH`/`DELETE` dulu menargetkan tim 1 di DB project sungguhan — kalau policy bocor, test itu sendiri yang menghapus/mengubah data produksi. Diperbaiki: nilai yang dikirim sama dengan nilai saat ini (no-op) dan `DELETE` selalu followed by pemulihan, jadi policy bocor hanya membuat test gagal, tidak merusak data.
+4. **Bukti pembersihan test SQL tidak valid.** Sub-select di statement yang sama dengan `DELETE` melihat snapshot sebelum delete, jadi `test_member_present` tetap 1 meski data sudah terhapus. Diperbaiki: pemembersihan dipisah ke statement sendiri, dan statement terakhir membuktikan `test_member_present = 0`, `slots_total = 0`.
+5. **AC3.3 (ringkasan jumlah tim per lane) parsingial.** `groupByLane` membuang lane tanpa tim; karena AC3.2 mengizinkan 0 tim per lane, lane kosong akan hilang dari ringkasan. Diperbaiki: semua lane tetap muncul (0 tim), sehingga ringkasan lengkap di semua keadaan.
+6. **Duplikasi kecil dirapikan**: peta `laneLabel` dihapus (nilainya cuma `lane.toUpperCase()`), helper `slotKey` dipakai untuk write+read (bukan format string yang diulang), fixture unit test memakai `SLOTS_PER_TEAM`, test RLS gagal cepat kalau env var kosong.
+7. **Tidak diperbaiki (sengaja)**: `src/lib/utils.ts` (file generated CLI shadcn, `components.json` masih menunjuk ke sana), `is_online` dibiarkan sebagai kolom biasa (DDL persis spec §4.2; derivasi `online_status = '[Online]'` dikerjakan di importer, ticket 03), `lib/supabase/client.ts` (klien browser) ditunda ke ticket 02 yang memang butuh login.
+
 ### Yang belum selesai
 
-- `SUPABASE_SERVICE_ROLE_KEY` masih kosong di `.env.local`. Dibutuhkan untuk ticket 02 (seed admin: `app_meta_data.role = 'admin'`) dan ticket 03 (import CSV replace-all, yang harus lewat service role agar tidak bergantung sesi login). Nilai diambil dari dashboard Supabase → Project Settings → API Keys → **Legacy API Keys → service_role** (atau **Secret keys** → `sb_secret_…`), lalu menempel di sini. Kunci hanya boleh dipakai di environment server — jangan pernah diberi prefix `NEXT_PUBLIC_`.
+- `SUPABASE_SERVICE_ROLE_KEY` masih kosong di `.env.local`. Dibutuhkan untuk ticket 02 (seed admin: `app_metadata.role = 'admin'`) dan ticket 03 (import CSV replace-all, yang harus lewat service role agar tidak bergantung sesi login). Nilai diambil dari dashboard Supabase → Project Settings → API Keys → **Legacy API Keys → service_role** (atau **Secret keys** → `sb_secret_…`), lalu menempel di sini. Kunci hanya boleh dipakai di environment server — jangan pernah diberi prefix `NEXT_PUBLIC_`.

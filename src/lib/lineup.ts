@@ -22,13 +22,17 @@ export type LineupTeam = {
 
 export type LineupLaneGroup = { lane: Lane; teams: LineupTeam[] };
 
-/** Kelompokkan tim per lane, urutan top → mid → bot; lane tanpa tim dibuang. */
+/** Kelompokkan tim per lane, urutan top → mid → bot. Lane tanpa tim tetap
+ *  muncul (kosong) supaya ringkasan jumlah tim per lane selalu lengkap. */
 export function groupByLane(teams: LineupTeam[]): LineupLaneGroup[] {
   return LANES.map((lane) => ({
     lane,
     teams: teams.filter((team) => team.lane === lane),
-  })).filter((group) => group.teams.length > 0);
+  }));
 }
+
+/** Kunci slot lineup: satu member maksimal satu tim. */
+const slotKey = (teamPosition: number, slotNo: number) => `${teamPosition}:${slotNo}`;
 
 /** Lineup aktif: 12 tim + 5 slot per tim (slot tanpa member = null). */
 export async function getLineup(): Promise<LineupTeam[]> {
@@ -49,7 +53,7 @@ export async function getLineup(): Promise<LineupTeam[]> {
 
   const memberBySlot = new Map<string, LineupMember | null>();
   for (const slot of slotsResult.data) {
-    memberBySlot.set(`${slot.team_position}:${slot.slot_no}`, slot.member);
+    memberBySlot.set(slotKey(slot.team_position, slot.slot_no), slot.member);
   }
 
   return teamsResult.data.map((team) => ({
@@ -57,7 +61,7 @@ export async function getLineup(): Promise<LineupTeam[]> {
     lane: team.lane,
     slots: Array.from({ length: SLOTS_PER_TEAM }, (_, index) => ({
       slotNo: index + 1,
-      member: memberBySlot.get(`${team.position}:${index + 1}`) ?? null,
+      member: memberBySlot.get(slotKey(team.position, index + 1)) ?? null,
     })),
   }));
 }

@@ -113,7 +113,7 @@ Website statis-fisik sederhana ("Legend Army Hub") dengan dua bagian: **halaman 
 **As a** Guild Manager, **I want to** area admin terkunci, **so that** hanya pengelola resmi yang bisa mengubah lineup.
 
 - **AC6.1** `/admin/*` mengarahkan user belum login ke halaman login; user login non-admin melihat **403 Forbidden**.
-- **AC6.2** Email + password login via Supabase Auth; role admin disimpan di `app_meta_data.role = 'admin'` (server-set, tidak bisa diedit user).
+- **AC6.2** Email + password login via Supabase Auth; role admin disimpan di `app_metadata.role = 'admin'` (server-set, tidak bisa diedit user).
 - **AC6.3** Tidak ada form registrasi di UI maupun endpoint signup yang terbuka.
 - **AC6.4** Write di database ditolak untuk `anon` dan user tanpa role admin (RLS), bukan hanya disembunyikan di UI.
 
@@ -151,7 +151,7 @@ Browser (publik / admin)
 Netlify (Next.js runtime, @netlify/plugin-nextjs)
    │  server-only: SUPABASE_SERVICE_ROLE_KEY
    ▼
-Supabase ── Auth (email/password, JWT app_meta_data.role)
+Supabase ── Auth (email/password, JWT app_metadata.role)
         ── PostgREST + RLS  →  Postgres
 ```
 
@@ -235,7 +235,7 @@ Kontrak domain:
 
 | Integrasi | Detail |
 |---|---|
-| Supabase Auth | Email/password. Role admin di `app_meta_data.role`; seeded lewat service-role admin API. |
+| Supabase Auth | Email/password. Role admin di `app_metadata.role`; seeded lewat service-role admin API. |
 | Supabase Postgres | Seluruh baca/tulis lewat PostgREST/Server Actions dengan session user (anon key), RLS aktif di semua tabel. |
 | Netlify | Repo Git (GitHub `rahmadahya/legend-army-hub`) → build `npm run build`, publish otomatis via `@netlify/plugin-nextjs`. Env vars diset di Netlify UI. |
 | Environment variables | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY` (server-only), `ADMIN_EMAIL`, `ADMIN_PASSWORD` (seed script saja). |
@@ -243,14 +243,14 @@ Kontrak domain:
 Task setup yang membutuhkan persetujuan user (dijalankan saat implementasi, bukan sekarang):
 
 1. **Buat Supabase project** via MCP `create_project` — tool mewajibkan pilihan organisasi & konfirmasi biaya → **user harus menentukan organisasi & menyetujui**. Free tier NOTE: project free-tier ter-pause setelah 1 minggu idle → build/seed ulang perlu re-awake.
-2. **Seed admin** via script `scripts/seed-admin.mjs` (service role key) → membuat user + `app_meta_data.role = 'admin'`.
+2. **Seed admin** via script `scripts/seed-admin.mjs` (service role key) → membuat user + `app_metadata.role = 'admin'`.
 3. **Buat Netlify site** baru (project existing `treasure-by-me` tidak relevan) + set env vars + connect repo.
 
 ### 4.5 Security & Privacy
 
-- **RLS aktif di `guild_members`, `teams`, `lineup_slots`.** Policy write hanya untuk `auth.jwt() -> 'app_meta_data' ->> 'role' = 'admin'`; policy read untuk `anon` + `authenticated`.
+- **RLS aktif di `guild_members`, `teams`, `lineup_slots`.** Policy write hanya untuk `auth.jwt() -> 'app_metadata' ->> 'role' = 'admin'`; policy read untuk `anon` + `authenticated`.
 - `SUPABASE_SERVICE_ROLE_KEY` hanya dipakai di environment server (server actions/seed script). **Tidak pernah** memakai prefix `NEXT_PUBLIC_` untuk key ini, tidak pernah di-expose ke client.
-- Role admin di `app_meta_data` (server-set via admin API) — bukan `user_metadata` yang bisa diubah user sendiri.
+- Role admin di `app_metadata` (server-set via admin API) — bukan `user_metadata` yang bisa diubah user sendiri.
 - Tidak ada endpoint signup terbuka; seed admin = satu-satunya jalur pembuatan akun.
 - Batas ukuran/row import divalidasi di server (5 MB / 2000 baris) untuk mencegah penyalahgunaan resource.
 - Pratinjau import (isi file) hanya ditampilkan ke admin.

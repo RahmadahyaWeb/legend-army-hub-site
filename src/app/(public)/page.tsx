@@ -10,18 +10,11 @@ import { Separator } from "@/components/ui/separator";
 import {
   groupByLane,
   getLineup,
-  type Lane,
   type LineupSlot,
   type LineupTeam,
 } from "@/lib/lineup";
 
 export const instant = false;
-
-const laneLabel: Record<Lane, string> = {
-  top: "TOP",
-  mid: "MID",
-  bot: "BOT",
-};
 
 function SlotRow({ slot }: { slot: LineupSlot }) {
   const { slotNo, member } = slot;
@@ -69,14 +62,14 @@ function TeamCard({ team }: { team: LineupTeam }) {
     <Card data-testid="team-card" size="sm" className="h-full">
       <CardHeader>
         <CardAction>
-          <Badge variant="secondary">{laneLabel[team.lane]}</Badge>
+          <Badge variant="secondary">{team.lane.toUpperCase()}</Badge>
         </CardAction>
         <CardTitle>Tim {team.position}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="flex flex-col gap-2" role="list" aria-label={`Anggota Tim ${team.position}`}>
           {team.slots.map((slot) => (
-            <div key={slot.slotNo} role="listitem">
+            <div key={slot.slotNo} role="listitem" data-testid="lineup-slot">
               <SlotRow slot={slot} />
             </div>
           ))}
@@ -106,7 +99,7 @@ export default async function PublicLineupPage() {
           {groups.map((group, index) => (
             <span key={group.lane} className="inline-flex items-center gap-3">
               <span className="font-medium text-foreground">
-                {laneLabel[group.lane]}
+                {group.lane.toUpperCase()}
               </span>
               <span>{group.teams.length} tim</span>
               {index < groups.length - 1 && (
@@ -126,7 +119,7 @@ export default async function PublicLineupPage() {
                   id={`lane-heading-${group.lane}`}
                   className="text-lg font-semibold tracking-tight"
                 >
-                  Jalur {laneLabel[group.lane]}
+                  Jalur {group.lane.toUpperCase()}
                 </h2>
                 <span className="text-sm text-muted-foreground">
                   {group.teams.length} tim

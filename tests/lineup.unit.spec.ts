@@ -1,15 +1,18 @@
 import { expect, test } from "@playwright/test";
-import { groupByLane, type LineupTeam } from "@/lib/lineup";
+import { groupByLane, SLOTS_PER_TEAM, type LineupTeam } from "@/lib/lineup";
 
 function team(position: number, lane: LineupTeam["lane"]): LineupTeam {
   return {
     position,
     lane,
-    slots: Array.from({ length: 5 }, (_, index) => ({ slotNo: index + 1, member: null })),
+    slots: Array.from({ length: SLOTS_PER_TEAM }, (_, index) => ({
+      slotNo: index + 1,
+      member: null,
+    })),
   };
 }
 
-test("groupByLane mengelompokkan tim per lane dan membuang lane kosong", () => {
+test("groupByLane mengelompokkan tim per lane dalam urutan top, mid, bot", () => {
   const groups = groupByLane([
     team(1, "top"),
     team(5, "mid"),
@@ -23,9 +26,9 @@ test("groupByLane mengelompokkan tim per lane dan membuang lane kosong", () => {
   expect(groups[2].teams.map((t) => t.position)).toEqual([9]);
 });
 
-test("groupByLane membuang lane tanpa tim", () => {
+test("lane tanpa tim tetap muncul supaya ringkasan jumlah tim per lane lengkap", () => {
   const groups = groupByLane([team(1, "top")]);
 
-  expect(groups).toHaveLength(1);
-  expect(groups[0].lane).toBe("top");
+  expect(groups).toHaveLength(3);
+  expect(groups.find((group) => group.lane === "bot")?.teams).toEqual([]);
 });

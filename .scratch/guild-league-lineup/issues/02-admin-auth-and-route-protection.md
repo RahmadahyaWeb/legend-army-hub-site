@@ -8,7 +8,7 @@
 
 **Status:** ready-for-agent
 
-- [ ] Script seed membuat user admin dari env (`ADMIN_EMAIL`, `ADMIN_PASSWORD`) dan memberi role admin di `app_meta_data` (server-set, bukan `user_metadata`).
+- [ ] Script seed membuat user admin dari env (`ADMIN_EMAIL`, `ADMIN_PASSWORD`) dan memberi role admin di `app_metadata` (server-set, bukan `user_metadata`).
 - [ ] Halaman login memvalidasi kredensial lewat Supabase Auth; session bertahan setelah refresh halaman.
 - [ ] Route `/admin/*` yang diakses anonim → redirect ke halaman login; user login tanpa role admin → 403 Forbidden.
 - [ ] Tidak ada UI registrasi maupun endpoint signup yang terbuka; satu-satunya jalur pembuatan akun adalah seed.
